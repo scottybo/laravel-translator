@@ -17,9 +17,7 @@ class Translator extends Command
     protected $description = 'Search new keys and update translation file';
 
     /**
-     * Execute the console command.
-     *
-     * @return void
+     * @throws \Exception
      */
     public function handle()
     {
@@ -114,12 +112,18 @@ class Translator extends Command
     }
 
     /**
-     * @param string $filePath
-     * @return array
+     * @param $filePath
+     * @return mixed
+     * @throws \Exception
      */
     private function getAlreadyTranslatedKeys($filePath)
     {
         $current = json_decode(file_get_contents($filePath), true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception('Unable to load json file, check if it has a valid json and try again');
+        }
+
         ksort($current);
 
         return $current;

@@ -11,7 +11,7 @@
     ],
     "require": {
         "php": ">=7.0.0",
-        "laravel/framework": ">=5.4.x-dev"
+        "laravel/framework": "5.5.*"
     },
     "require-dev": {
         "phpunit/phpunit": "~6.0"
