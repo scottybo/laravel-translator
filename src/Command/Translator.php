@@ -48,6 +48,32 @@ class Translator extends Command
             }
             $this->line("");
         }
+        
+        $translationJSKeys = $this->findProjectJSTranslationsKeys();
+        $translationJSFiles = $this->getProjectJSTranslationFiles();
+
+        foreach ($translationJSFiles as $file) {
+            $translationJSData = $this->getAlreadyTranslatedKeys($file);
+            $this->line("JS lang " . str_replace('-javascript.json', '', basename($file)));
+            $added = [];
+
+            foreach ($translationJSKeys as $key) {
+                if (!isset($translationData[$key])) {
+                    $this->warn(" - Added {$key}");
+                    $translationJSData[$key] = '';
+                    $added[] = $key;
+                }
+            }
+
+            if ($added) {
+                $this->line("updating file...");
+                $this->writeNewTranslationFile($file, $translationData);
+                $this->info("done!");
+            } else {
+                $this->warn("new keys not found for this language");
+            }
+            $this->line("");
+        }
     }
 
     /**
@@ -58,6 +84,19 @@ class Translator extends Command
         $allKeys = [];
         $this->getTranslationKeysFromDir($allKeys, app_path());
         $this->getTranslationKeysFromDir($allKeys, resource_path('views'));
+        ksort($allKeys);
+
+        return $allKeys;
+    }
+    
+    /**
+     * @return array
+     */
+    private function findProjectJSTranslationsKeys()
+    {
+        $allKeys = [];
+        $this->getTranslationKeysFromDir($allKeys, resource_path('assets/js'),'vue');
+        $this->getTranslationKeysFromDir($allKeys, resource_path('assets/js'),'js');
         ksort($allKeys);
 
         return $allKeys;
@@ -88,14 +127,21 @@ class Translator extends Command
     private function getTranslationKeysFromFunction(&$keys, $functionName, $content)
     {
         $matches = [];
+        
+        // Find functions __() and lang() and store their content in $matches
         preg_match_all("#{$functionName}\((.*?)\)#", $content, $matches);
 
         if (!empty($matches)) {
+            
+            // Loop through the function's "contents", e.g. 'String Name', ['abc' => 'xyz']
             foreach ($matches[1] as $match) {
                 $strings = [];
+                
+                // Find anything that is between ' ' 
                 preg_match('#\'(.*?)\'#', str_replace('"', "'", $match), $strings);
-
+                
                 if (!empty($strings)) {
+                    // Store the first value found which will contain the string to be translated
                     $keys[$strings[1]] = $strings[1];
                 }
             }
@@ -109,6 +155,17 @@ class Translator extends Command
     {
         $path = resource_path('lang');
         $files = glob("{$path}/*.json", GLOB_BRACE);
+
+        return $files;
+    }
+    
+    /**
+     * @return array
+     */
+    private function getProjectJSTranslationFiles()
+    {
+        $path = resource_path('lang');
+        $files = glob("{$path}/*-javascript.json", GLOB_BRACE);
 
         return $files;
     }

@@ -1,12 +1,12 @@
 {
-    "name": "thiagocordeiro/laravel-translator",
-    "description": "Search translation keys and insert into json to be translated",
+    "name": "scottybo/laravel-translator",
+    "description": "Fork of thiagocordeiro/laravel-translator to search translation keys in PHP and Vue/JS and insert into separate json files to be translated",
     "type": "project",
     "license": "MIT",
     "authors": [
         {
-            "name": "Thiago Cordeiro",
-            "email": "thiagoguetten@gmail.com"
+            "name": "Scott Bowler",
+            "email": "scott.bowler@dcsworldwide.net"
         }
     ],
     "require": {

@@ -1,4 +1,11 @@
-# Laravel-Translator
+# Laravel-Translator for PHP and Vue
+
+This is a forked version of Laravel-Translator (https://github.com/thiagocordeiro/laravel-translator) which adds the ability to separate generation of Vue translation files and PHP translation files.
+
+Javascript translations will be stored in /resources/lang/{lang}-javascript.json and the standard PHP translations will follow the same as the original package (see below).
+
+
+# Original readme
 
 Laravel-translator scans your project `resources/view/` and `app/` folder to find `lang(...)` and `__(...)` functions, then it create keys based on first parameter value and insert into json translation files.
 
@@ -7,7 +14,7 @@ Laravel-translator scans your project `resources/view/` and `app/` folder to fin
 You just have to require the package
 
 ```sh
-$ composer require thiagocordeiro/laravel-translator
+$ composer require scottybo/laravel-translator
 ```
 
 This package register the provider automatically,
