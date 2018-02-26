@@ -55,20 +55,20 @@ class Translator extends Command
 
         foreach ($translationJSFiles as $file) {
             $translationJSData = $this->getAlreadyTranslatedKeys($file);
-            $this->line("JS lang " . str_replace('-javascript.json', '', basename($file)));
+            $this->line("JS lang " . str_replace('.json', '', basename($file)));
             $added = [];
 
             foreach ($translationJSKeys as $key) {
-                if (!isset($translationData[$key])) {
+                if (!isset($translationJSData[$key])) {
                     $this->warn(" - Added {$key}");
                     $translationJSData[$key] = '';
                     $added[] = $key;
                 }
             }
-
+            
             if ($added) {
                 $this->line("updating file...");
-                $this->writeNewTranslationFile($file, $translationData);
+                $this->writeNewTranslationFile($file, $translationJSData);
                 $this->info("done!");
             } else {
                 $this->warn("new keys not found for this language");
@@ -139,7 +139,7 @@ class Translator extends Command
                 $strings = [];
                 
                 // Find anything that is between ' ' 
-                preg_match('#\'(.*?)\'#', str_replace('"', "'", $match), $strings);
+                preg_match('#\"(.*?)\"#', $match, $strings);
                 
                 if (!empty($strings)) {
                     // Store the first value found which will contain the string to be translated
@@ -166,7 +166,7 @@ class Translator extends Command
     private function getProjectJSTranslationFiles()
     {
         $path = resource_path('lang');
-        $files = glob("{$path}/*-javascript.json", GLOB_BRACE);
+        $files = glob("{$path}/_javascript/*.json", GLOB_BRACE);
 
         return $files;
     }
