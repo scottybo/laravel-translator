@@ -1,23 +1,7 @@
 
+# Laravel-Translator for PHP and Vue
 
-# Holly Social Readme
-## Queues & Workers
-TODO
-## Backups
-TODO
-## Whitelabel
-TODO
-## Localization
-
-Holly can be translated into any language. Language files are stored in `resources/lang`, where 3 different sets of language files are available:
-
- - **{lang}.json** = Translation strings used in Laravel blades
- - **/_javascript/{lang}.json** = Translation strings used in Vue templates and other Javascript files
- - **/{lang}/{system-area}.php** = Translation strings for various Laravel system messages
-
-As there are so many strings to translate we **don't** use named keys (e.g. 'auth.login.fail.message') and instead just put the full string to be translated (e.g. 'We were not able to login you in').
-
-We use [POEditor](https://poeditor.com) to manage translations. POEditor pulls in the JSON files (it doesn't support the PHP files) from Github and allows collaboration before committing back to Github.
+This is a forked version of Laravel-Translator (https://github.com/thiagocordeiro/laravel-translator) which adds the ability to separate generation of Vue translation files and PHP translation files. It's slightly refactored to play nicely with translated strings rather than named keys.
 
 **Follow these simple rules when adding translations**
 
@@ -29,17 +13,118 @@ We use [POEditor](https://poeditor.com) to manage translations. POEditor pulls i
  - Never break translations onto a new line, it will create additional spaces / tabs
  - For pluralisation, casing etc refer to: [https://laravel.com/docs/5.6/localization](https://laravel.com/docs/5.6/localization)
 
-### Choosing which language to show
-Currently the language is set at the system level. Whitelabel tenants have a "locale" column  in the whitelabel table of the (core database) where the language for that tenancy is defined.
 
-### Generating the JSON files
-**Short version:**  `$ php artisan translator:update`  and then `$ php artisan cache:clear` 
+### Translations in Laravel Blades
+For simple strings:
 
-**Long version:** Manually managing the JSON translation files would be a major headache. Instead we use the package: [scottybo/laravel-translator](https://github.com/scottybo/laravel-translator) (a forked version of thiagocordeiro/laravel-translator with the added separation of Javascript/PHP translations to fit our requirements).
+    {{ __("String that can be translated") }}
 
-The package above has a README, but generally all you need to do is run `$ php artisan translator:update` which will search for any new translation strings and update the json files. Make sure to clear the cache `$ php artisan cache:clear` each time any new translations are added.
-### Adding a language
-Simply add the json file using the format below for the language you want to add then run `$ php artisan translator:update`
+For strings with variables
+
+    {{ __("Hi :name, welcome to :app", ['name' => 'Scott', 'app' => 'Widgets 3000']) }}
+
+
+### Translations in Javascript/Vue
+**Translations not updating? Clear the cache!** `$ php artisan cache:clear`
+
+Strings used in Vue templates and Javascript code are stored in `/resources/lang/_javascript/` and are handled separately from general PHP/system translations. This is to ensure the visitor only downloads translations that are used in JS, keeping file sizes small for faster downloads.
+
+We load `<script src="/js/lang-{lang}.js"></script>` on every page of the system. The URL is actually a Laravel route which loads the corresponding language file (e.g. `/resources/lang/_javascript/{lang}.json`) and returns a json encoded string of the translations. This string is stored in the variable: window.i18n, which can then be referenced by Javascript.
+```php
+// Load the translations for javascript strings
+Route::get('js/lang-{locale}.js', function ($locale) {
+
+    try {
+        // config('app.locales') gives all supported locales
+        if (!array_key_exists($locale, config('app.locales'))) {
+            $locale = config('app.fallback_locale');
+        }
+
+        // Add locale to the cache key
+        $json = \Cache::rememberForever("lang-{$locale}.js", function () use ($locale) {
+            $path = base_path().'/resources/lang/_javascript/'.$locale.'.json';
+            $data = file_get_contents($path);
+            return $data;
+        });
+        
+    } catch (Exception $e) {
+        $json = $e->getMessage();
+    }
+
+    $contents = 'window.i18n = ' . json_encode($json, config('app.debug', false) ? JSON_PRETTY_PRINT : 0) . ';';
+
+    $response = \Response::make($contents, 200);
+    $response->header('Content-Type', 'application/javascript');
+
+    return $response;
+});
+```
+
+During the generation of this string will tell Laravel to cache this response forever. Therefore if you ever update the translation file you need to clear the cache via `php artisan cache:clear`.
+
+To keep the logic of translations consistent, we have a Vue prototype variable of `__` which handles the conversion of the translations (in `/resources/assets/js/app.js`):
+```javascript
+window._ = require('lodash');
+
+// Localization of strings, see README
+Vue.prototype.__ = (string, args) => {
+    i18n_array = JSON.parse(window.i18n);
+
+    let value = _.get(i18n_array, string);
+
+    _.eachRight(args, (paramVal, paramKey) => {
+        alert(`:${paramKey}`);
+        value = _.replace(value, `:${paramKey}`, paramVal);
+    });
+    return value;
+};
+```
+
+For simple strings:
+
+    {{ __("String that can be translated") }}
+
+For strings with variables:
+
+    {{ __("Hi :name, welcome to :app", {'name': 'Scott', 'app', 'Widgets 3000'}) }}
+
+
+
+----------
+
+Laravel-translator scans your project `resources/view/` `resources/js/` and `app/` folder to find `lang(...)` and `__(...)` functions, then it create keys based on first parameter value and insert into json translation files.
+
+### Installation
+
+You just have to require the package
+
+```sh
+$ composer require scottybo/laravel-translator
+```
+
+This package register the provider automatically,
+[See laravel package discover](https://laravel.com/docs/5.5/packages#package-discovery).
+
+After composer finish it's installation, you'll be able to update your project translation keys running the following command:
+```sh
+$ php artisan translator:update
+```
+
+if for any reason artisan can't find `translator:update` command, you can register the provider manually on your `config/app.php` file:
+
+```php
+return [
+    ...
+    'providers' => [
+        ...
+        Translator\TranslatorServiceProvider::class,
+        ...
+    ]
+]
+```
+
+### Usage
+First you have to create your json translation files:
 ```
 app/
   resources/
@@ -53,33 +138,23 @@ app/
 		      es.json
 		      fr.json
 ```
+Keep working as you are used to, when laravel built-in translation funcion can't find given key, it'll return itself, so if you create english keys, you don't need to create an english translation 
+```html
+blade:
+<html>
+    {{ __('Hello World') }}
+</html>
 
-### Translations in Laravel Blades
-For simple strings:
+controllers, models, etc.:
+<?php
+    __('Hello World');
+```
 
-    {{ __("String that can be translated") }}
+also you can use params on translation keys
+```
+__('Welcome, :name', ['Arthur Dent'])
+```
 
-For strings with variables
-
-    {{ __("Hi :name, welcome to :app", ['name' => 'Scott', 'app' => 'Holly Social']) }}
-
-
-### Translations in Javascript/Vue
-**Translations not updating? Clear the cache!** `$ php artisan cache:clear`
-
-Strings used in Vue templates and Javascript code are stored in `/resources/lang/_javascript/` and are handled separately from general PHP/system translations. This is to ensure the visitor only downloads translations that are used in JS, keeping file sizes small for faster downloads.
-
-We load `<script src="/js/lang-{lang}.js"></script>` on every page of the system. The URL is actually a Laravel route which loads the corresponding language file (e.g. `/resources/lang/_javascript/{lang}.json`) and returns a json encoded string of the translations. This string is stored in the variable: window.i18n, which can then be referenced by Javascript.
-
-During the generation of this string will tell Laravel to cache this response forever. Therefore if you ever update the translation file you need to clear the cache via `php artisan cache:clear`.
-
-To keep the logic of translations consistent, we have a Vue prototype variable of __ which handles the conversion of the translations (see `/resources/assets/js/app.js`).
-
-For simple strings:
-
-    {{ __("String that can be translated") }}
-
-For strings with variables:
-
-    {{ __("Hi :name, welcome to :app", {'name': 'Scott', 'app', 'Holly Social'}) }}
+### Output
+`translator:update` command will scan your code to identify new translation keys, then it'll update all json files on `app/resources/lang/` folder appending this keys.
 
