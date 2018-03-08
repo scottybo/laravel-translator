@@ -85,6 +85,7 @@ class Translator extends Command
         $allKeys = [];
         $this->getTranslationKeysFromDir($allKeys, app_path());
         $this->getTranslationKeysFromDir($allKeys, resource_path('views'));
+        $this->getTranslationKeysFromDir($allKeys, resource_path('assets/js'),'vue',true);
         ksort($allKeys);
 
         return $allKeys;
@@ -108,15 +109,15 @@ class Translator extends Command
      * @param string $dirPath
      * @param string $fileExt
      */
-    private function getTranslationKeysFromDir(&$keys, $dirPath, $fileExt = 'php')
+    private function getTranslationKeysFromDir(&$keys, $dirPath, $fileExt = 'php', $includeBracketsInRegex = false)
     {
         $files = glob_recursive("{$dirPath}/*.{$fileExt}", GLOB_BRACE);
 
         foreach ($files as $file) {
             $content = $this->getSanitizedContent($file);
 
-            $this->getTranslationKeysFromFunction($keys, 'lang', $content);
-            $this->getTranslationKeysFromFunction($keys, '__', $content);
+            $this->getTranslationKeysFromFunction($keys, 'lang', $content, $includeBracketsInRegex);
+            $this->getTranslationKeysFromFunction($keys, '__', $content, $includeBracketsInRegex);
         }
     }
 
@@ -125,17 +126,31 @@ class Translator extends Command
      * @param string $functionName
      * @param string $content
      */
-    private function getTranslationKeysFromFunction(&$keys, $functionName, $content)
+    private function getTranslationKeysFromFunction(&$keys, $functionName, $content, $includeBracketsInRegex = false)
     {
         $matches = [];
         
+        if($includeBracketsInRegex) {
+            $regex = "#\{\{(.*?){$functionName}\((.*?)\)(.*?)\}\}#";
+        } else {
+            $regex = "#{$functionName}\((.*?)\)#";
+        }
+
+        
         // Find functions __() and lang() and store their content in $matches
-        preg_match_all("#{$functionName}\((.*?)\)#", $content, $matches);
+        preg_match_all($regex, $content, $matches);
 
         if (!empty($matches)) {
             
+            
+            if($includeBracketsInRegex) {
+                $the_matches = $matches[2];
+            } else {
+                $the_matches = $matches[1];
+            }
+            
             // Loop through the function's "contents", e.g. 'String Name', ['abc' => 'xyz']
-            foreach ($matches[1] as $match) {
+            foreach ($the_matches as $match) {
                 $strings = [];
                 
                 // Find anything that is between ' ' 
